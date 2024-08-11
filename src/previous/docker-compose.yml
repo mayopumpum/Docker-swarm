@@ -1,0 +1,57 @@
+version: "3.8"
+services:
+  db:
+    build: "./services/database"
+    env_file:
+      - ./services/database/.env.db
+    volumes:
+      - data:/var/lib/postgresql/data
+  rmq:
+    image: "rabbitmq:3-management-alpine"
+  booking:
+    build: "./services/booking-service"
+    env_file:
+      - ./services/booking-service/.env.booking
+    depends_on:
+      - payment
+      - hotel
+      - rmq
+
+  gateway:
+    build: "./services/gateway-service"
+    ports:
+      - 8087:8087
+    env_file:
+      - ./services/gateway-service/.env.gateway
+    depends_on:
+      - booking
+      - hotel
+      - loyalty
+      - session
+  hotel:
+    build: "./services/hotel-service"
+    env_file:
+      - ./services/hotel-service/.env.hotel
+  loyalty:
+    build: "./services/loyalty-service"
+    env_file:
+      - ./services/loyalty-service/.env.loyalty
+  payment:
+    build: "./services/payment-service"
+    env_file:
+      - ./services/payment-service/.env.payment
+  report:
+    build: "./services/report-service"
+    env_file:
+      - ./services/report-service/.env.report
+    depends_on:
+      - rmq
+  session:
+    build: "./services/session-service"
+    ports:
+      - 8081:8081
+    env_file:
+      - ./services/session-service/.env.session
+
+volumes:
+  data:

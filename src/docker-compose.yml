@@ -1,0 +1,142 @@
+version: "3.8"
+services:
+  db:
+    image: "hottsters/db:v_1"
+    environment:
+      POSTGRES_DB: database
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - data:/var/lib/postgresql/data
+    networks:
+      - myNetwork
+  rmq:
+    image: "rabbitmq:3-management-alpine"
+    depends_on:
+      - db
+    networks:
+      - myNetwork
+  booking:
+    image: "hottsters/booking-service:v_1"
+    environment:
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      POSTGRES_USER : postgres
+      POSTGRES_PASSWORD: "postgres"
+      POSTGRES_DB: reservations_db
+      RABBIT_MQ_HOST: rmq
+      RABBIT_MQ_PORT: 5672
+      RABBIT_MQ_USER: guest
+      RABBIT_MQ_PASSWORD: guest
+      RABBIT_MQ_QUEUE_NAME: messagequeue
+      RABBIT_MQ_EXCHANGE: messagequeue-exchange
+      HOTEL_SERVICE_HOST: hotel
+      HOTEL_SERVICE_PORT: 8082
+      PAYMENT_SERVICE_HOST: payment
+      PAYMENT_SERVICE_PORT: 8084
+      LOYALTY_SERVICE_HOST: loyalty
+      LOYALTY_SERVICE_PORT: 8085
+    networks:
+      - myNetwork
+    depends_on:
+      - payment
+      - hotel
+      - rmq
+  gateway:
+    image: "hottsters/gateway-service:v_1"
+    environment:
+      SESSION_SERVICE_HOST: session
+      SESSION_SERVICE_PORT: 8081
+      HOTEL_SERVICE_HOST: hotel
+      HOTEL_SERVICE_PORT: 8082
+      BOOKING_SERVICE_HOST: booking
+      BOOKING_SERVICE_PORT: 8083
+      PAYMENT_SERVICE_HOST: payment
+      PAYMENT_SERVICE_PORT: 8084
+      LOYALTY_SERVICE_HOST: loyalty
+      LOYALTY_SERVICE_PORT: 8085
+      REPORT_SERVICE_HOST: report
+      REPORT_SERVICE_PORT: 8086
+    networks:
+      - myNetwork
+    depends_on:
+      - booking
+      - hotel
+      - loyalty
+      - session
+  hotel:
+    image: "hottsters/hotel-service:v_1"
+    environment:
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      POSTGRES_USER : postgres
+      POSTGRES_PASSWORD: "postgres"
+      POSTGRES_DB: hotels_db
+    networks:
+      - myNetwork
+  loyalty:
+    image: "hottsters/loyalty-service:v_1"
+    environment:
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      POSTGRES_USER : postgres
+      POSTGRES_PASSWORD: "postgres"
+      POSTGRES_DB: balances_db
+    networks:
+      - myNetwork
+  payment:
+    image: "hottsters/payment-service:v_1"
+    environment:
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      POSTGRES_USER : postgres
+      POSTGRES_PASSWORD: "postgres"
+      POSTGRES_DB: payments_db
+    networks:
+      - myNetwork
+  report:
+    image: "hottsters/report-service:v_1"
+    environment:
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      POSTGRES_USER : postgres
+      POSTGRES_PASSWORD: "postgres"
+      POSTGRES_DB: statistics_db
+      RABBIT_MQ_HOST: rmq
+      RABBIT_MQ_PORT: 5672
+      RABBIT_MQ_USER: guest
+      RABBIT_MQ_PASSWORD: guest
+      RABBIT_MQ_QUEUE_NAME: messagequeue
+      RABBIT_MQ_EXCHANGE: messagequeue-exchange
+    networks:
+      - myNetwork
+    depends_on:
+      - rmq
+  session:
+    image: "hottsters/session-service:v_1"
+    environment:
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      POSTGRES_USER : postgres
+      POSTGRES_PASSWORD: "postgres"
+      POSTGRES_DB: users_db
+    networks:
+      - myNetwork
+  nginx:
+    image: "hottsters/nginx:v_1"
+    ports:
+      - 8081:8081
+      - 8087:8087
+    networks:
+      - myNetwork
+    deploy:
+      placement:
+        constraints:
+          - node.hostname == manager01
+      
+volumes:
+  data:
+
+networks:
+  myNetwork:
+    driver: overlay
